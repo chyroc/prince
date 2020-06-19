@@ -1,8 +1,9 @@
 package rpcclient
 
 import (
-	"github.com/chyroc/prince/internal/pb_gen"
 	"google.golang.org/grpc"
+
+	"github.com/chyroc/prince/internal/pb_gen"
 )
 
 var Client pb_gen.PrinceServiceClient

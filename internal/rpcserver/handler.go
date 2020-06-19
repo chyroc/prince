@@ -2,16 +2,21 @@ package rpcserver
 
 import (
 	"fmt"
-	"github.com/chyroc/prince/internal/pb_gen"
-	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+
+	"github.com/chyroc/prince/internal/pb_gen"
 )
 
 var ServerChan = make(chan pb_gen.HttpProxyRequest, 1000)
 var lock sync.RWMutex
 var response = make(map[string]*pb_gen.HttpProxyResponse)
+
+type Server struct {
+}
 
 func (r *Server) HttpProxy(stream pb_gen.PrinceService_HttpProxyServer) error {
 	go readResponse(stream)

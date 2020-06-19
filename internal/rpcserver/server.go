@@ -2,31 +2,22 @@ package rpcserver
 
 import (
 	"fmt"
-	"github.com/chyroc/prince/internal/pb_gen"
-	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 	"net"
+
+	"google.golang.org/grpc"
+
+	"github.com/chyroc/prince/internal/pb_gen"
 )
 
-type Server struct {
-	address string
-}
-
-func NewServer() *Server {
-	return &Server{
-		address: ":8001",
-	}
-}
-
-func (r *Server) Start() error {
-	logrus.Infof("start server at %s", r.address)
+func Run(transferHost string) error {
+	fmt.Printf("[server][transfer] 启动转发服务: %s\n", transferHost)
 
 	sv := grpc.NewServer()
 	pb_gen.RegisterPrinceServiceServer(sv, new(Server))
 
-	listener, err := net.Listen("tcp", r.address)
+	listener, err := net.Listen("tcp", transferHost)
 	if err != nil {
-		return fmt.Errorf("start server failed: %w", err)
+		return fmt.Errorf("[server][transfer] 服务启动失败: %w", err)
 	}
 	return sv.Serve(listener)
 }

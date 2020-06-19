@@ -1,28 +1,25 @@
-package proxy
+package proxyserver
 
 import (
 	"bytes"
 	"fmt"
-	"github.com/chyroc/prince/internal/pb_gen"
-	"github.com/chyroc/prince/internal/rpcserver"
-	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/chyroc/prince/internal/pb_gen"
+	"github.com/chyroc/prince/internal/rpcserver"
 )
 
 type Proxy struct {
 }
 
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	fmt.Printf("接受请求 %s %s %+v %s\n", req.Method, req.URL.String(), req.Header, req.RemoteAddr)
-
-	//outReq := new(http.Request)
-	//*outReq = *req // 这只是一个浅层拷贝
+	fmt.Printf("[server][proxy] 接受请求 %s %s %+v %s\n", req.Method, req.URL.String(), req.Header, req.RemoteAddr)
 
 	bs, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("[server][proxy] 读取请求失败: %s\n", err)
 		return
 	}
 
@@ -41,8 +38,6 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		Headers: headers,
 		Body:    bs,
 	}, func(resp *pb_gen.HttpProxyResponse) error {
-		logrus.Infoln("resp", resp)
-
 		for key, value := range resp.Headers {
 			w.Header().Set(key, value)
 		}
@@ -54,8 +49,8 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	})
 }
 
-func New(addr string) {
-	fmt.Println("serve on " + addr)
+func Run(addr string) {
+	fmt.Printf("[server][proxy] 代理服务器启动: %s\n", addr)
 	http.Handle("/", &Proxy{})
 	http.ListenAndServe(addr, nil)
 }
