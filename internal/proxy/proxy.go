@@ -1,11 +1,14 @@
 package proxy
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/chyroc/prince/internal/pb_gen"
+	"github.com/chyroc/prince/internal/rpcserver"
+	"github.com/sirupsen/logrus"
 	"io"
-	"net"
+	"io/ioutil"
 	"net/http"
-	"strings"
 )
 
 type Proxy struct {
@@ -14,35 +17,41 @@ type Proxy struct {
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	fmt.Printf("接受请求 %s %s %+v %s\n", req.Method, req.URL.String(), req.Header, req.RemoteAddr)
 
-	outReq := new(http.Request)
-	*outReq = *req // 这只是一个浅层拷贝
+	//outReq := new(http.Request)
+	//*outReq = *req // 这只是一个浅层拷贝
 
-	//clientIP, _, err := net.SplitHostPort(req.RemoteAddr)
-	//if err == nil {
-	//	prior, ok := outReq.Header["X-Forwarded-For"]
-	//	if ok {
-	//		clientIP = strings.Join(prior, ", ") + ", " + clientIP
-	//	}
-	//	outReq.Header.Set("X-Forwarded-For", clientIP)
-	//}
+	bs, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-
-	//transport := http.DefaultTransport
-	//res, err := transport.RoundTrip(outReq)
-	//if err != nil {
-	//	w.WriteHeader(http.StatusBadGateway) // 502
-	//	return
-	//}
-
-	for key, value := range res.Header {
-		for _, v := range value {
-			w.Header().Add(key, v)
+	headers := make(map[string]string)
+	for k, v := range req.Header {
+		if len(v) >= 1 {
+			headers[k] = v[0]
+		} else {
+			headers[k] = ""
 		}
 	}
 
-	w.WriteHeader(res.StatusCode)
-	io.Copy(w, res.Body)
-	res.Body.Close()
+	rpcserver.Send(pb_gen.HttpProxyRequest{
+		Method:  req.Method,
+		Url:     req.URL.String(),
+		Headers: headers,
+		Body:    bs,
+	}, func(resp *pb_gen.HttpProxyResponse) error {
+		logrus.Infoln("resp", resp)
+
+		for key, value := range resp.Headers {
+			w.Header().Set(key, value)
+		}
+
+		w.WriteHeader(int(resp.Status))
+		_, err := io.Copy(w, bytes.NewReader(resp.Body))
+
+		return err
+	})
 }
 
 func New(addr string) {

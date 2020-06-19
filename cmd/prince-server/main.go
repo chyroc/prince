@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"github.com/chyroc/prince/internal/proxy"
+	"github.com/chyroc/prince/internal/rpcserver"
 )
 
 func main() {
 	fmt.Println("server")
-	proxy.New(":8080") // 提供代理的 http 接口
+	go proxy.New(":8002") // 提供代理的 http 接口
+	rpcserver.NewServer().Start()
 	// 提供转发的 tcp 接口
 }
