@@ -6,7 +6,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/chyroc/prince/internal/pb_gen"
 )
@@ -18,21 +19,35 @@ var response = make(map[string]*pb_gen.HttpProxyResponse)
 type Server struct {
 }
 
+func IsClosed(ch <-chan int) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+	}
+
+	return false
+}
+
 func (r *Server) HttpProxy(stream pb_gen.PrinceService_HttpProxyServer) error {
-	go readResponse(stream)
-	writeRequest(stream)
+	closeChan := make(chan int)
+	go readResponse(stream, closeChan)
+	writeRequest(stream, closeChan)
 	return nil
 }
 
-func readResponse(stream pb_gen.PrinceService_HttpProxyServer) {
+func readResponse(stream pb_gen.PrinceService_HttpProxyServer, closeChan chan int) {
 	for {
 		resp, err := stream.Recv()
 		if err != nil {
-			logrus.Error(err)
+			fmt.Printf("[server][transfer] recv failed: %s\n", err)
+			if status.Code(err) == codes.Canceled {
+				// 代表客户端断开连接了，需要取消这个链接
+				close(closeChan)
+				return
+			}
 			continue
 		}
-
-		logrus.Infoln(resp)
 
 		lock.Lock()
 		response[resp.Uuid] = resp
@@ -40,10 +55,16 @@ func readResponse(stream pb_gen.PrinceService_HttpProxyServer) {
 	}
 }
 
-func writeRequest(stream pb_gen.PrinceService_HttpProxyServer) {
-	for v := range ServerChan {
-		err := stream.Send(&v)
-		logrus.Infoln("server send", err)
+func writeRequest(stream pb_gen.PrinceService_HttpProxyServer, closeChan chan int) {
+	for {
+		select {
+		case v := <-ServerChan:
+			if err := stream.Send(&v); err != nil {
+				fmt.Printf("[server][transfer] send failed: %s\n", err)
+			}
+		case <-closeChan:
+			return
+		}
 	}
 }
 

@@ -7,12 +7,19 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/chyroc/prince/internal/pb_gen"
 	"github.com/chyroc/prince/internal/rpcclient"
 )
 
 func RunClient(transferHost string) error {
-	fmt.Println("启动客户端 ...")
+	return runClient(transferHost, 0)
+}
+
+func runClient(transferHost string, times int) error {
+	fmt.Println("[client] 启动客户端 ...")
 
 	if transferHost == "" {
 		return fmt.Errorf("请使用 --transfer_host=host:port 指定连接的服务端转发服务端口")
@@ -27,11 +34,17 @@ func RunClient(transferHost string) error {
 		return err
 	}
 
+	fmt.Printf("[client] 连接到服务端: %s\n", transferHost)
+
 	// 监听服务下发的任务，然后执行
 	for {
 		req, err := stream.Recv()
 		if err != nil {
 			fmt.Printf("[client] recv 失败: %s\n", err)
+			if status.Code(err) == codes.Unavailable {
+				// 服务端断
+				return fmt.Errorf("服务端断连")
+			}
 			continue
 		}
 
