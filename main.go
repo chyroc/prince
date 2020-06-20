@@ -7,7 +7,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 
-	"github.com/chyroc/prince/cmd"
+	"github.com/chyroc/prince/internal/cmd"
 )
 
 func main() {

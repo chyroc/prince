@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/chyroc/prince/internal/proxyserver"
-	"github.com/chyroc/prince/internal/rpcserver"
+	"github.com/chyroc/prince/internal/transferserver"
 )
 
 func RunServer(transferHost, proxyHost string) error {
@@ -17,7 +17,6 @@ func RunServer(transferHost, proxyHost string) error {
 		return fmt.Errorf("请使用 --proxy_host=host:port 指定服务启动的代理端口")
 	}
 
-	go proxyserver.Run(proxyHost) // 提供代理的 http 接口
-
-	return rpcserver.Run(transferHost)
+	go proxyserver.RunProxyServer(proxyHost) // 提供代理的 http 接口
+	return transferserver.RunTransferServer(transferHost)
 }
